@@ -1,0 +1,308 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>金丸法×ECP 資金管理</title>
+<style>
+:root{--bg:#eef1f5;--card:#fff;--ink:#1b2631;--sub:#5d6c7b;--line:#d5dce4;--ai:#1d3a5f;--ai2:#e4ebf4;--gold:#b87d00;--ok:#1c7a4b;--ng:#b3372f;--warn:#fff1cf;--warnt:#6b4a00}
+@media (prefers-color-scheme:dark){:root{--bg:#10161d;--card:#18212b;--ink:#e6ecf2;--sub:#93a3b3;--line:#2b3846;--ai:#8fb4e3;--ai2:#1f2e40;--gold:#e0a82e;--ok:#4cc68a;--ng:#ff8a80;--warn:#3a2e10;--warnt:#f3d68a}}
+*{box-sizing:border-box}
+html{color-scheme:light dark}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.7 -apple-system,"Hiragino Sans","Yu Gothic",Meiryo,sans-serif;padding:env(safe-area-inset-top) 0 env(safe-area-inset-bottom)}
+main{max-width:760px;margin:0 auto;padding:16px}
+h1{font:700 1.5rem/1.3 "Hiragino Mincho ProN","Yu Mincho",serif;margin:8px 0 2px;color:var(--ai)}
+h2{font:700 1.05rem/1.4 "Hiragino Mincho ProN","Yu Mincho",serif;margin:0 0 10px}
+.lead{color:var(--sub);margin:0 0 14px;font-size:.9rem}
+.card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:16px;margin-bottom:14px}
+label{display:block;font-size:.85rem;color:var(--sub);margin-bottom:2px}
+input{width:100%;font:inherit;padding:9px 10px;border:1px solid var(--line);border-radius:6px;background:var(--bg);color:var(--ink)}
+input:focus-visible,button:focus-visible,summary:focus-visible{outline:3px solid var(--gold);outline-offset:2px}
+.row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.row3{display:grid;grid-template-columns:1.4fr 1.2fr .8fr;gap:10px}
+@media (max-width:480px){.row3{grid-template-columns:1fr 1fr}.row3>:first-child{grid-column:1/-1}}
+select{width:100%;font:inherit;padding:9px 6px;border:1px solid var(--line);border-radius:6px;background:var(--bg);color:var(--ink)}
+select:focus-visible{outline:3px solid var(--gold);outline-offset:2px}
+button{font:inherit;font-weight:700;border:0;border-radius:6px;padding:11px 14px;cursor:pointer;background:var(--ai);color:var(--card)}
+button.sub{background:var(--ai2);color:var(--ai)}
+button.ok{background:var(--ok);color:#fff}button.ng{background:var(--ng);color:#fff}
+button:disabled{opacity:.4;cursor:not-allowed}
+.btns{display:flex;gap:10px;flex-wrap:wrap;margin-top:12px}.btns>*{flex:1 1 140px}
+.next{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap}
+.next b{font-size:2.4rem;line-height:1.1;font-variant-numeric:tabular-nums;color:var(--ai)}
+.tag{display:inline-block;padding:1px 10px;border-radius:99px;background:var(--ai);color:var(--card);font-size:.8rem;font-weight:700}
+.stages{display:flex;gap:6px;margin-top:8px}
+.stages span{flex:1;text-align:center;padding:4px 0;border:1px solid var(--line);border-radius:6px;font-size:.85rem;font-variant-numeric:tabular-nums}
+.stages .cur{border-color:var(--gold);background:var(--warn);font-weight:700}
+.stages .done{opacity:.45;text-decoration:line-through}
+.unit{margin-bottom:10px}
+.unit .h{display:flex;justify-content:space-between;gap:8px;font-variant-numeric:tabular-nums}
+.unit .bar{height:10px;background:var(--ai2);border-radius:5px;overflow:hidden;margin-top:3px}
+.unit .bar i{display:block;height:100%;background:var(--ai)}
+.unit.act .bar i{background:var(--gold)}.unit.dead{opacity:.5}
+.unit small{color:var(--sub)}
+.msg{background:var(--warn);color:var(--warnt);border-radius:8px;padding:10px 12px;margin:10px 0;font-size:.92rem}
+.msg.good{background:var(--ai2);color:var(--ai)}
+.kpi{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px}
+.kpi div{border:1px solid var(--line);border-radius:8px;padding:8px 10px}
+.kpi small{display:block;color:var(--sub);font-size:.78rem}.kpi b{font-size:1.15rem;font-variant-numeric:tabular-nums}
+.pos{color:var(--ok)}.neg{color:var(--ng)}
+.scroll{overflow-x:auto}
+table{border-collapse:collapse;width:100%;font-size:.82rem;white-space:nowrap;font-variant-numeric:tabular-nums}
+th,td{border-bottom:1px solid var(--line);padding:5px 8px;text-align:right}
+th{color:var(--sub);font-weight:600;position:sticky;top:0;background:var(--card)}
+td:nth-child(2),td:nth-child(3),td:nth-child(5),td:last-child,th:nth-child(2),th:nth-child(3),th:nth-child(5),th:last-child{text-align:left}
+details{font-size:.9rem}summary{cursor:pointer;font-weight:700;padding:4px 0}
+details p,details li{margin:4px 0}
+footer{color:var(--sub);font-size:.78rem;text-align:center;padding:8px 0 24px}
+dialog{border:1px solid var(--line);border-radius:12px;background:var(--card);color:var(--ink);padding:18px;width:min(92vw,380px)}dialog::backdrop{background:rgba(0,0,0,.5)}
+[hidden]{display:none!important}
+</style>
+</head>
+<body>
+<main>
+<h1>金丸法×ECP 資金管理</h1>
+<p class="lead">軍資金を入れるだけで、歩兵・騎馬隊・本隊の振り分けと次の賭け金を自動計算します。記録はこの端末のブラウザ内だけに保存されます。</p>
+
+<section class="card" id="setup">
+  <h2>軍資金を設定</h2>
+  <label for="total">総軍資金（円）</label>
+  <input id="total" type="number" inputmode="numeric" min="0" step="100" value="100000">
+  <div id="preview" class="lead" style="margin-top:8px"></div>
+  <div class="btns"><button id="start">この金額で開始</button></div>
+</section>
+
+<div id="play" hidden>
+  <section class="card">
+    <h2>次の賭け金</h2>
+    <div class="next"><span class="tag" id="sqTag"></span><b id="nextStake"></b></div>
+    <div class="stages" id="stages"></div>
+    <div id="alerts"></div>
+  </section>
+
+  <section class="card">
+    <h2>レース結果を入力</h2><p class="lead" style="margin:0 0 10px">日付を確認して「的中」か「不的中」を押します。的中のときは、表示される入力欄でレース場・レース・払戻金を入力してください。</p>
+    <div><label for="date">日付</label><input id="date" type="date"></div>
+    <div class="btns"><button class="ok" id="hit">的中</button><button class="ng" id="miss">不的中</button></div>
+  </section>
+
+  <section class="card">
+    <h2>現在の状況</h2>
+    <div id="units"></div>
+    <div class="kpi" id="kpi"></div>
+  </section>
+
+  <section class="card">
+    <h2>記録</h2>
+    <div class="scroll"><table id="tbl"></table></div>
+    <div class="btns">
+      <button id="csv">CSVを保存</button>
+      <button class="sub" id="undo">1件取り消す</button>
+      <button class="sub" id="reset">最初からやり直す</button>
+    </div>
+  </section>
+</div>
+
+<section class="card">
+<details><summary>ルールの要約</summary>
+<ul>
+<li>総軍資金を 歩兵:騎馬隊:本隊＝1:2:4 に分ける（歩兵は 総軍資金÷7 を1,300円の倍数に切り捨て、騎馬隊は歩兵の2倍、本隊は残り）。</li>
+<li>各部隊は資金を1:3:9の3段階に分け（100円未満切り捨て）、一番小さい段階から賭ける。</li>
+<li>不的中なら次の段階へ進む。的中したら増えた資金で1:3:9に分け直し、最初の段階に戻る。</li>
+<li>3段階とも外れると全滅。歩兵なら騎馬隊、騎馬隊なら本隊が出陣し、全滅した部隊の初期資金分を取り戻すと復活。</li>
+<li>全部隊の残高が総軍資金の110%に達したら終了。増加分をプールに移す。</li>
+<li>条件：合成オッズ1.5倍以上（払戻金÷賭け金で自動計算）、的中率50%以上。本隊も全滅した場合はルール未定のため停止します。</li>
+</ul></details>
+</section>
+<footer>入力した記録は外部に送信されません。端末を変える場合はCSVを保存してください。</footer>
+</main>
+
+<dialog id="dlg">
+  <h2>払戻金を入力</h2>
+  <p class="lead" style="margin:0 0 10px">賭け金 <b id="dlgBet"></b></p>
+  <div class="row" style="margin-bottom:10px">
+    <div><label for="venue">レース場</label><select id="venue"></select></div>
+    <div><label for="race">レース</label><select id="race"></select></div>
+  </div>
+  <label for="pay">払戻金（戻ってきた総額・円）</label>
+  <input id="pay" type="number" inputmode="numeric" step="10" min="0" placeholder="例 6000">
+  <div id="oddsWarn" class="msg" hidden></div>
+  <div class="btns"><button class="sub" id="dlgCancel">キャンセル</button><button class="ok" id="dlgOk">記録する</button></div>
+</dialog>
+<script>
+(function(){
+'use strict';
+var KEY='kanamaru-ecp-v1', NAMES=['歩兵','騎馬隊','本隊'];
+var S=null;
+var $=function(id){return document.getElementById(id)};
+var yen=function(n){return Number(n).toLocaleString('ja-JP')+'円'};
+var sgn=function(n){return (n>0?'+':'')+Number(n).toLocaleString('ja-JP')};
+
+/* ---- 計算ロジック ---- */
+// 資金を1:3:9に分ける（100円単位で切り捨て）
+function split(b){var u=Math.floor(b/13/100)*100;return [u,u*3,u*9]}
+// 総軍資金→歩兵・騎馬隊・本隊（1:2:4）。歩兵は総軍資金÷7を1,300円の倍数に切り捨て
+function alloc(total){
+  var inf=Math.floor(total/7/1300)*1300;
+  if(inf<1300)return null;
+  return [inf,inf*2,total-inf-inf*2];
+}
+function newState(total){
+  var a=alloc(total);
+  return {total:total,init:a.slice(),bal:a.slice(),wiped:[false,false,false],st:[0,0,0],
+    sp:[split(a[0]),split(a[1]),split(a[2])],rec:[],hist:[],ended:false,halted:false,pool:0,hits:0};
+}
+// 現在出陣している部隊：歩兵が生きていれば歩兵、歩兵が全滅なら騎馬隊、両方全滅なら本隊
+function active(s){return s.wiped[0]?(s.wiped[1]?2:1):0}
+function sum(s){return s.bal[0]+s.bal[1]+s.bal[2]}
+function stake(s){var a=active(s);return s.sp[a][s.st[a]]}
+function becomeActive(s){var n=active(s);s.sp[n]=split(s.bal[n]);s.st[n]=0;return n}
+
+function play(date,payIn,hit){
+  var s=S;if(s.ended||s.halted)return;
+  s.hist.push(JSON.stringify(Object.assign({},s,{hist:[]})));
+  var a=active(s),stage=s.st[a],bet=s.sp[a][stage],notes=[];
+  var pay=hit?payIn:0,odds=hit?Math.round(payIn/bet*100)/100:null; // 合成オッズは払戻金÷賭け金で算出
+  s.bal[a]+=pay-bet;
+  if(hit){
+    s.hits++;
+    s.sp[a]=split(s.bal[a]);s.st[a]=0;           // 的中：増えた資金で1:3:9を再計算
+    var moved=true;
+    while(moved){                                  // 復活判定（連続して復活する場合あり）
+      moved=false;
+      var a2=active(s);
+      if(a2>0){
+        var k=a2-1,need=s.init[k]-s.bal[k];
+        if(s.bal[a2]>=s.init[a2]+need){
+          s.bal[a2]-=need;s.bal[k]=s.init[k];s.wiped[k]=false;
+          notes.push(NAMES[k]+'復活（'+yen(need)+'を'+NAMES[a2]+'から移動）');
+          becomeActive(s);moved=true;
+        }
+      }
+    }
+    var t=sum(s);
+    if(t>=Math.ceil(s.total*11/10)){                 // 110%到達で終了
+      s.ended=true;s.pool=t-s.total;
+      notes.push('110%到達：終了（プール '+yen(s.pool)+'）');
+    }
+  }else if(stage<2){
+    s.st[a]++;                                     // 不的中：次の段階へ
+  }else{
+    s.wiped[a]=true;notes.push(NAMES[a]+'全滅');   // 3段階とも不的中：全滅
+    if(a===2){s.halted=true;notes.push('本隊も全滅：ルール未定のため要確認')}
+    else notes.push(NAMES[becomeActive(s)]+'へ移行');
+  }
+  var tot=sum(s);
+  s.rec.push({n:s.rec.length+1,date:date,venue:hit?$('venue').value:'',race:hit?$('race').value:'',sq:NAMES[a],stage:stage+1,bet:bet,odds:odds,res:hit?'的中':'不的中',
+    pay:pay,diff:pay-bet,cum:tot-s.total,b:s.bal.slice(),pool:s.ended?s.pool:0,
+    rate:(tot/s.total*100).toFixed(1)+'%',memo:notes.join(' / ')});
+  save();render();
+}
+
+/* ---- 保存 ---- */
+function save(){try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}}
+function load(){try{var j=localStorage.getItem(KEY);if(j)return JSON.parse(j)}catch(e){}return null}
+
+/* ---- 表示 ---- */
+function esc(t){return String(t).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]})}
+function render(){
+  $('setup').hidden=!!S;$('play').hidden=!S;
+  if(!S)return;
+  var s=S,a=active(s),sp=s.sp[a],done=s.ended||s.halted;
+  $('sqTag').textContent=NAMES[a]+(a===0?'':'（復活戦）');
+  $('nextStake').textContent=done?'―':yen(stake(s));
+  $('stages').innerHTML=sp.map(function(v,i){
+    var c=i===s.st[a]&&!done?'cur':(i<s.st[a]?'done':'');
+    return '<span class="'+c+'">'+(i===0?'★ ':'')+v.toLocaleString('ja-JP')+'</span>'}).join('');
+  var al=[],n=s.rec.length,rate=n?s.hits/n:1;
+  if(s.ended)al.push(['good','目標の110%に到達しました。増加分 '+yen(s.pool)+' をプールに移して終了です。']);
+  if(s.halted)al.push(['','本隊も全滅しました。この場合のルールは未定のため、自動では進めません。取り消すか、やり直してください。']);
+  if(!done&&n>=2&&rate<0.5)al.push(['','的中率が '+(rate*100).toFixed(0)+'% です（目標50%以上）。']);
+  if(!done&&a>0)al.push(['good',NAMES[a]+'が出陣中。目標：'+NAMES[a-1]+'の初期資金 '+yen(s.init[a-1])+' 分を取り戻す。']);
+  $('alerts').innerHTML=al.map(function(m){return '<div class="msg '+m[0]+'">'+esc(m[1])+'</div>'}).join('');
+  $('hit').disabled=$('miss').disabled=done;
+  $('units').innerHTML=[0,1,2].map(function(i){
+    var st=s.wiped[i]?'全滅':(i===a&&!done?'出陣中':'待機'),w=Math.max(0,Math.min(100,s.bal[i]/s.init[i]*100));
+    return '<div class="unit '+(i===a&&!done?'act':'')+(s.wiped[i]?' dead':'')+'"><div class="h"><span>'+NAMES[i]+' <small>'+st+'</small></span><span>'+yen(s.bal[i])+' <small>/ 初期 '+s.init[i].toLocaleString('ja-JP')+'</small></span></div><div class="bar"><i style="width:'+w+'%"></i></div></div>'}).join('');
+  var tot=sum(s),cum=tot-s.total;
+  $('kpi').innerHTML=
+    '<div><small>総軍資金</small><b>'+yen(s.total)+'</b></div>'+
+    '<div><small>累計収支</small><b class="'+(cum>0?'pos':cum<0?'neg':'')+'">'+sgn(cum)+'円</b></div>'+
+    '<div><small>回収率（総残高÷総軍資金）</small><b>'+(tot/s.total*100).toFixed(1)+'%</b></div>'+
+    '<div><small>目標（110%）</small><b>'+yen(Math.ceil(s.total*11/10))+'</b></div>'+
+    '<div><small>プール</small><b>'+yen(s.pool)+'</b></div>'+
+    '<div><small>的中率</small><b>'+(n?(s.hits/n*100).toFixed(0)+'%（'+s.hits+'/'+n+'）':'―')+'</b></div>';
+  var h='<tr><th>#</th><th>日付</th><th>レース場</th><th>R</th><th>部隊</th><th>段階</th><th>賭け金</th><th>オッズ</th><th>結果</th><th>払戻</th><th>収支</th><th>累計</th><th>回収率</th><th>メモ</th></tr>';
+  for(var i=s.rec.length-1;i>=0;i--){var r=s.rec[i];
+    h+='<tr><td>'+r.n+'</td><td>'+esc(r.date)+'</td><td>'+esc(r.venue||'')+'</td><td>'+esc(r.race||'')+'</td><td>'+r.sq+'</td><td>'+r.stage+'</td><td>'+r.bet.toLocaleString('ja-JP')+'</td><td>'+(r.odds==null?'':r.odds)+'</td><td>'+r.res+'</td><td>'+r.pay.toLocaleString('ja-JP')+'</td><td>'+sgn(r.diff)+'</td><td>'+sgn(r.cum)+'</td><td>'+r.rate+'</td><td>'+esc(r.memo)+'</td></tr>'}
+  $('tbl').innerHTML=s.rec.length?h:'<tr><td style="text-align:left">まだ記録がありません</td></tr>';
+  $('undo').disabled=!s.hist.length;
+}
+function csv(){
+  var head=['記録番号','日付','レース場','レース','部隊','段階','賭け金','合成オッズ','結果','払戻','収支','累計収支','歩兵残高','騎馬隊残高','本隊残高','プール額','回収率','メモ'];
+  var q=function(v){v=String(v==null?'':v);return /[",\n]/.test(v)?'"'+v.replace(/"/g,'""')+'"':v};
+  var lines=[head.join(',')];
+  S.rec.forEach(function(r){lines.push([r.n,r.date,r.venue,r.race,r.sq,r.stage,r.bet,r.odds,r.res,r.pay,r.diff,r.cum,r.b[0],r.b[1],r.b[2],r.pool,r.rate,r.memo].map(q).join(','))});
+  var blob=new Blob(['\ufeff'+lines.join('\r\n')],{type:'text/csv;charset=utf-8'});
+  var u=URL.createObjectURL(blob),el=document.createElement('a');
+  el.href=u;el.download='kanamaru-ecp_'+(S.rec.length?S.rec[S.rec.length-1].date||'record':'record')+'.csv';
+  document.body.appendChild(el);el.click();document.body.removeChild(el);
+  setTimeout(function(){URL.revokeObjectURL(u)},1000);
+}
+
+/* ---- イベント ---- */
+function today(){var d=new Date();return d.getFullYear()+'-'+('0'+(d.getMonth()+1)).slice(-2)+'-'+('0'+d.getDate()).slice(-2)}
+function preview(){
+  var t=parseInt($('total').value,10),a=t>0?alloc(t):null,p=$('preview');
+  if(!a){p.textContent='9,100円以上を入力してください。';return}
+  p.innerHTML='歩兵 '+yen(a[0])+'（'+split(a[0]).map(function(v){return v.toLocaleString('ja-JP')}).join(' / ')+'）<br>騎馬隊 '+yen(a[1])+'　本隊 '+yen(a[2]);
+}
+function answer(hit){
+  if(!hit){play($('date').value,0,false);return}
+  if(S.ended||S.halted)return;
+  $('dlgBet').textContent=yen(stake(S));$('pay').value='';$('oddsWarn').hidden=true;
+  $('dlg').showModal();$('venue').focus();
+}
+function commitHit(){
+  var pay=parseInt($('pay').value,10),bet=stake(S);
+  if(!$('venue').value||!$('race').value){alert('レース場とレースを選択してください。');return}
+  if(!(pay>0)){alert('払戻金を入力してください。');return}
+  if(pay<bet*1.5&&!confirm('払戻金が賭け金の1.5倍未満（合成オッズ'+(pay/bet).toFixed(2)+'倍）です。このまま記録しますか？'))return;
+  $('dlg').close();play($('date').value,pay,true);
+}
+$('total').addEventListener('input',preview);
+$('start').addEventListener('click',function(){
+  var t=parseInt($('total').value,10);
+  if(!(t>0)||!alloc(t)){alert('9,100円以上を入力してください。');return}
+  S=newState(t);save();render();
+});
+$('pay').addEventListener('input',function(){
+  var v=parseInt(this.value,10),w=$('oddsWarn');
+  if(S&&!S.ended&&!S.halted&&v>0&&v<stake(S)*1.5){w.textContent='払戻金が賭け金の1.5倍未満（合成オッズ'+(v/stake(S)).toFixed(2)+'倍）です。この手法の条件を満たしていません。';w.hidden=false}
+  else w.hidden=true;
+});
+$('hit').addEventListener('click',function(){answer(true)});
+$('miss').addEventListener('click',function(){answer(false)});
+$('dlgOk').addEventListener('click',commitHit);
+$('dlgCancel').addEventListener('click',function(){$('dlg').close()});
+$('pay').addEventListener('keydown',function(e){if(e.key==='Enter'){e.preventDefault();commitHit()}});
+$('csv').addEventListener('click',function(){csv()});
+$('undo').addEventListener('click',function(){
+  if(!S.hist.length)return;
+  var h=S.hist.slice(0,-1),prev=JSON.parse(S.hist[S.hist.length-1]);prev.hist=h;S=prev;save();render();
+});
+$('reset').addEventListener('click',function(){
+  if(!confirm('記録をすべて消して最初からやり直します。CSVは保存しましたか？'))return;
+  S=null;try{localStorage.removeItem(KEY)}catch(e){}render();
+});
+var VENUES=['桐生','戸田','江戸川','平和島','多摩川','浜名湖','蒲郡','常滑','津','三国','びわこ','住之江','尼崎','鳴門','丸亀','児島','宮島','徳山','下関','若松','芦屋','福岡','からつ','大村'];
+var vo='<option value="">選択</option>',ro='<option value="">選択</option>';
+VENUES.forEach(function(v,i){var t=(i+1)+'_'+v;vo+='<option value="'+t+'">'+t+'</option>'});
+for(var r=1;r<=12;r++)ro+='<option value="'+r+'">'+r+'</option>';
+$('venue').innerHTML=vo;$('race').innerHTML=ro;
+$('date').value=today();
+S=load();preview();render();
+})();
+</script>
+</body>
+</html>
