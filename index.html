@@ -108,7 +108,7 @@ dialog{border:1px solid var(--line);border-radius:12px;background:var(--card);co
 <ul>
 <li>総軍資金を 歩兵:騎馬隊:本隊＝1:2:4 に分ける（歩兵は 総軍資金÷7 を1,300円の倍数に切り捨て、騎馬隊は歩兵の2倍、本隊は残り）。</li>
 <li>各部隊は資金を1:3:9の3段階に分け（100円未満切り捨て）、一番小さい段階から賭ける。</li>
-<li>不的中なら次の段階へ進む。的中したら増えた資金で1:3:9に分け直し、最初の段階に戻る。</li>
+<li>不的中なら次の段階へ進む。的中しても払戻金が賭け金未満（トリガミ）の場合は、外れとして扱い次の段階へ進む。的中したら増えた資金で1:3:9に分け直し、最初の段階に戻る。</li>
 <li>3段階とも外れると全滅。歩兵なら騎馬隊、騎馬隊なら本隊が出陣し、全滅した部隊の初期資金分を取り戻すと復活。</li>
 <li>全部隊の残高が総軍資金の110%に達したら終了。増加分をプールに移す。</li>
 <li>条件：合成オッズ1.5倍以上（払戻金÷賭け金で自動計算）、的中率50%以上。本隊も全滅した場合はルール未定のため停止します。</li>
@@ -164,7 +164,10 @@ function play(date,payIn,hit){
   var a=active(s),stage=s.st[a],bet=s.sp[a][stage],notes=[];
   var pay=hit?payIn:0,odds=hit?Math.round(payIn/bet*100)/100:null; // 合成オッズは払戻金÷賭け金で算出
   s.bal[a]+=pay-bet;
-  if(hit){
+  // トリガミ（的中だが払戻金が賭け金未満）は外れとして扱う：的中数に数えず、次の段階へ進む
+  var tori=hit&&pay<bet,win=hit&&!tori;
+  if(tori)notes.push('トリガミ（払戻'+yen(pay)+'＜賭け金'+yen(bet)+'）：外れ扱い');
+  if(win){
     s.hits++;
     s.sp[a]=split(s.bal[a]);s.st[a]=0;           // 的中：増えた資金で1:3:9を再計算
     var moved=true;
@@ -193,7 +196,7 @@ function play(date,payIn,hit){
     else notes.push(NAMES[becomeActive(s)]+'へ移行');
   }
   var tot=sum(s);
-  s.rec.push({n:s.rec.length+1,date:date,venue:hit?$('venue').value:'',race:hit?$('race').value:'',sq:NAMES[a],stage:stage+1,bet:bet,odds:odds,res:hit?'的中':'不的中',
+  s.rec.push({n:s.rec.length+1,date:date,venue:hit?$('venue').value:'',race:hit?$('race').value:'',sq:NAMES[a],stage:stage+1,bet:bet,odds:odds,res:win?'的中':'不的中',
     pay:pay,diff:pay-bet,cum:tot-s.total,b:s.bal.slice(),pool:s.ended?s.pool:0,
     rate:(tot/s.total*100).toFixed(1)+'%',memo:notes.join(' / ')});
   save();render();
@@ -267,7 +270,8 @@ function commitHit(){
   var pay=parseInt($('pay').value,10),bet=stake(S);
   if(!$('venue').value||!$('race').value){alert('レース場とレースを選択してください。');return}
   if(!(pay>0)){alert('払戻金を入力してください。');return}
-  if(pay<bet*1.5&&!confirm('払戻金が賭け金の1.5倍未満（合成オッズ'+(pay/bet).toFixed(2)+'倍）です。このまま記録しますか？'))return;
+  if(pay<bet&&!confirm('トリガミ（払戻金'+yen(pay)+'＜賭け金'+yen(bet)+'）です。外れとして記録しますか？'))return;
+  if(pay>=bet&&pay<bet*1.5&&!confirm('払戻金が賭け金の1.5倍未満（合成オッズ'+(pay/bet).toFixed(2)+'倍）です。このまま記録しますか？'))return;
   $('dlg').close();play($('date').value,pay,true);
 }
 $('total').addEventListener('input',preview);
@@ -278,7 +282,8 @@ $('start').addEventListener('click',function(){
 });
 $('pay').addEventListener('input',function(){
   var v=parseInt(this.value,10),w=$('oddsWarn');
-  if(S&&!S.ended&&!S.halted&&v>0&&v<stake(S)*1.5){w.textContent='払戻金が賭け金の1.5倍未満（合成オッズ'+(v/stake(S)).toFixed(2)+'倍）です。この手法の条件を満たしていません。';w.hidden=false}
+  if(S&&!S.ended&&!S.halted&&v>0&&v<stake(S)){w.textContent='トリガミ（払戻金が賭け金未満）です。外れとして記録され、次の段階に進みます。';w.hidden=false}
+  else if(S&&!S.ended&&!S.halted&&v>0&&v<stake(S)*1.5){w.textContent='払戻金が賭け金の1.5倍未満（合成オッズ'+(v/stake(S)).toFixed(2)+'倍）です。この手法の条件を満たしていません。';w.hidden=false}
   else w.hidden=true;
 });
 $('hit').addEventListener('click',function(){answer(true)});
