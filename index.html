@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>金丸法×ECP</title>
+<title>金丸法×ECP 資金管理</title>
 <style>
 :root{--bg:#eef1f5;--card:#fff;--ink:#1b2631;--sub:#5d6c7b;--line:#d5dce4;--ai:#1d3a5f;--ai2:#e4ebf4;--gold:#b87d00;--ok:#1c7a4b;--ng:#b3372f;--warn:#fff1cf;--warnt:#6b4a00}
 @media (prefers-color-scheme:dark){:root{--bg:#10161d;--card:#18212b;--ink:#e6ecf2;--sub:#93a3b3;--line:#2b3846;--ai:#8fb4e3;--ai2:#1f2e40;--gold:#e0a82e;--ok:#4cc68a;--ng:#ff8a80;--warn:#3a2e10;--warnt:#f3d68a}}
@@ -69,7 +69,7 @@ dialog{border:1px solid var(--line);border-radius:12px;background:var(--card);co
   <label for="total">総軍資金（円）</label>
   <input id="total" type="number" inputmode="numeric" min="0" step="100" value="100000">
   <div id="preview" class="lead" style="margin-top:8px"></div>
-  <div class="btns"><button id="start">この金額で開始</button></div>
+  <div class="btns"><button id="start">この金額で開始</button><button class="sub" id="importA">CSVを読み込んで再開</button></div>
 </section>
 
 <div id="play" hidden>
@@ -97,6 +97,7 @@ dialog{border:1px solid var(--line);border-radius:12px;background:var(--card);co
     <div class="scroll"><table id="tbl"></table></div>
     <div class="btns">
       <button id="csv">CSVを保存</button>
+      <button class="sub" id="importB">CSVを読み込む</button>
       <button class="sub" id="undo">1件取り消す</button>
       <button class="sub" id="reset">最初からやり直す</button>
     </div>
@@ -114,7 +115,8 @@ dialog{border:1px solid var(--line);border-radius:12px;background:var(--card);co
 <li>条件：合成オッズ1.5倍以上（払戻金÷賭け金で自動計算）、的中率50%以上。本隊も全滅した場合はルール未定のため停止します。</li>
 </ul></details>
 </section>
-<footer>入力した記録は外部に送信されません。端末を変える場合はCSVを保存してください。</footer>
+<input type="file" id="csvFile" accept=".csv,text/csv" hidden>
+<footer>入力した記録は外部に送信されません。1日の終わりにCSVを保存しておけば、「CSVを読み込む」で続きから再開できます。</footer>
 </main>
 
 <dialog id="dlg">
@@ -158,7 +160,7 @@ function sum(s){return s.bal[0]+s.bal[1]+s.bal[2]}
 function stake(s){var a=active(s);return s.sp[a][s.st[a]]}
 function becomeActive(s){var n=active(s);s.sp[n]=split(s.bal[n]);s.st[n]=0;return n}
 
-function play(date,payIn,hit){
+function play(date,payIn,hit,venue,race){
   var s=S;if(s.ended||s.halted)return;
   s.hist.push(JSON.stringify(Object.assign({},s,{hist:[]})));
   var a=active(s),stage=s.st[a],bet=s.sp[a][stage],notes=[];
@@ -196,7 +198,7 @@ function play(date,payIn,hit){
     else notes.push(NAMES[becomeActive(s)]+'へ移行');
   }
   var tot=sum(s);
-  s.rec.push({n:s.rec.length+1,date:date,venue:hit?$('venue').value:'',race:hit?$('race').value:'',sq:NAMES[a],stage:stage+1,bet:bet,odds:odds,res:win?'的中':'不的中',
+  s.rec.push({n:s.rec.length+1,date:date,venue:hit?(venue||''):'',race:hit?(race||''):'',sq:NAMES[a],stage:stage+1,bet:bet,odds:odds,res:win?'的中':'不的中',
     pay:pay,diff:pay-bet,cum:tot-s.total,b:s.bal.slice(),pool:s.ended?s.pool:0,
     rate:(tot/s.total*100).toFixed(1)+'%',memo:notes.join(' / ')});
   save();render();
@@ -248,7 +250,9 @@ function csv(){
   S.rec.forEach(function(r){lines.push([r.n,r.date,r.venue,r.race,r.sq,r.stage,r.bet,r.odds,r.res,r.pay,r.diff,r.cum,r.b[0],r.b[1],r.b[2],r.pool,r.rate,r.memo].map(q).join(','))});
   var blob=new Blob(['\ufeff'+lines.join('\r\n')],{type:'text/csv;charset=utf-8'});
   var u=URL.createObjectURL(blob),el=document.createElement('a');
-  el.href=u;el.download='kanamaru-ecp_'+(S.rec.length?S.rec[S.rec.length-1].date||'record':'record')+'.csv';
+  el.href=u;var d=new Date(),z=function(n){return ('0'+n).slice(-2)};
+  // ファイル名：kanamaru-ecp_年月日_時分秒.csv（保存した時刻）
+  el.download='kanamaru-ecp_'+d.getFullYear()+z(d.getMonth()+1)+z(d.getDate())+'_'+z(d.getHours())+z(d.getMinutes())+z(d.getSeconds())+'.csv';
   document.body.appendChild(el);el.click();document.body.removeChild(el);
   setTimeout(function(){URL.revokeObjectURL(u)},1000);
 }
@@ -261,7 +265,7 @@ function preview(){
   p.innerHTML='歩兵 '+yen(a[0])+'（'+split(a[0]).map(function(v){return v.toLocaleString('ja-JP')}).join(' / ')+'）<br>騎馬隊 '+yen(a[1])+'　本隊 '+yen(a[2]);
 }
 function answer(hit){
-  if(!hit){play($('date').value,0,false);return}
+  if(!hit){play($('date').value,0,false,'','');return}
   if(S.ended||S.halted)return;
   $('dlgBet').textContent=yen(stake(S));$('pay').value='';$('oddsWarn').hidden=true;
   $('dlg').showModal();$('venue').focus();
@@ -272,7 +276,7 @@ function commitHit(){
   if(!(pay>0)){alert('払戻金を入力してください。');return}
   if(pay<bet&&!confirm('トリガミ（払戻金'+yen(pay)+'＜賭け金'+yen(bet)+'）です。外れとして記録しますか？'))return;
   if(pay>=bet&&pay<bet*1.5&&!confirm('払戻金が賭け金の1.5倍未満（合成オッズ'+(pay/bet).toFixed(2)+'倍）です。このまま記録しますか？'))return;
-  $('dlg').close();play($('date').value,pay,true);
+  $('dlg').close();play($('date').value,pay,true,$('venue').value,$('race').value);
 }
 $('total').addEventListener('input',preview);
 $('start').addEventListener('click',function(){
@@ -305,6 +309,64 @@ var vo='<option value="">選択</option>',ro='<option value="">選択</option>';
 VENUES.forEach(function(v,i){var t=(i+1)+'_'+v;vo+='<option value="'+t+'">'+t+'</option>'});
 for(var r=1;r<=12;r++)ro+='<option value="'+r+'">'+r+'</option>';
 $('venue').innerHTML=vo;$('race').innerHTML=ro;
+
+/* ---- CSV読み込み（記録を最初から再生して状態を復元） ---- */
+function parseCSV(t){
+  t=t.replace(/^\ufeff/,'');
+  var rows=[],row=[],f='',q=false;
+  for(var i=0;i<t.length;i++){
+    var c=t[i];
+    if(q){if(c==='"'){if(t[i+1]==='"'){f+='"';i++}else q=false}else f+=c}
+    else if(c==='"')q=true;
+    else if(c===','){row.push(f);f=''}
+    else if(c==='\n'||c==='\r'){if(c==='\r'&&t[i+1]==='\n')i++;row.push(f);f='';rows.push(row);row=[]}
+    else f+=c;
+  }
+  if(f!==''||row.length){row.push(f);rows.push(row)}
+  return rows.filter(function(r){return r.length>1||r[0]!==''});
+}
+function importCSV(text){
+  var rows=parseCSV(text);
+  if(rows.length<2)return '記録が見つかりません。';
+  var H={};rows[0].forEach(function(n,i){H[n.trim()]=i});
+  var need=['日付','賭け金','払戻','累計収支','歩兵残高','騎馬隊残高','本隊残高'];
+  for(var k=0;k<need.length;k++)if(!(need[k] in H))return '列「'+need[k]+'」がありません。このツールで保存したCSVを選んでください。';
+  var g=function(r,n){return n in H?String(r[H[n]]==null?'':r[H[n]]).trim():''};
+  var num=function(r,n){return parseInt(g(r,n),10)};
+  var r1=rows[1];
+  // 総軍資金 ＝ 1件目の記録後の残高合計 − 1件目の累計収支
+  var total=num(r1,'歩兵残高')+num(r1,'騎馬隊残高')+num(r1,'本隊残高')-num(r1,'累計収支');
+  if(!(total>0)||!alloc(total))return '総軍資金を復元できませんでした。';
+  var old=S;S=newState(total);
+  for(var i=1;i<rows.length;i++){
+    var r=rows[i],pay=num(r,'払戻')||0,err=null;
+    if(S.ended||S.halted)err='終了後に記録が続いています。';
+    else if(stake(S)!==num(r,'賭け金'))err='賭け金が計算結果（'+yen(stake(S))+'）と一致しません。';
+    if(!err){
+      play(g(r,'日付'),pay,pay>0,g(r,'レース場'),g(r,'レース'));
+      var b=S.rec[S.rec.length-1].b;
+      if(b[0]!==num(r,'歩兵残高')||b[1]!==num(r,'騎馬隊残高')||b[2]!==num(r,'本隊残高'))err='残高が計算結果と一致しません。';
+    }
+    if(err){S=old;save();render();return i+'行目：'+err+'（CSVを編集していないか確認してください）'}
+  }
+  return null;
+}
+function pickCSV(){$('csvFile').click()}
+$('importA').addEventListener('click',pickCSV);
+$('importB').addEventListener('click',pickCSV);
+$('csvFile').addEventListener('change',function(){
+  var f=this.files&&this.files[0],inp=this;
+  if(!f)return;
+  var rd=new FileReader();
+  rd.onload=function(){
+    inp.value='';
+    if(S&&S.rec.length&&!confirm('現在の記録を、読み込むCSVの内容で置き換えます。よろしいですか？'))return;
+    var e=importCSV(String(rd.result));
+    if(e)alert('読み込めませんでした。'+e);
+    else alert(S.rec.length+'件の記録を読み込みました。続きから入力できます。');
+  };
+  rd.readAsText(f,'UTF-8');
+});
 $('date').value=today();
 S=load();preview();render();
 })();
